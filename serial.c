@@ -63,21 +63,21 @@ double run_threads(struct list_node_s **list_head,
         if (op == 0 && insOps < Ins)
         {
             // Insert operation
-            int res = Insert(rand_value, list_head);
+            Insert(rand_value, list_head);
             insOps++;
             totOps++;
         }
         else if (op == 1 && delOps < Del)
         {
             // Delete operation
-            int res = Delete(rand_value, list_head);
+            Delete(rand_value, list_head);
             delOps++;
             totOps++;
         }
         else if (memOps < Mem)
         {
             // Member operation
-            int res = Member(rand_value, *list_head);
+            Member(rand_value, *list_head);
             memOps++;
             totOps++;
         }
