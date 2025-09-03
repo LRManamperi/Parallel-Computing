@@ -15,93 +15,64 @@ typedef struct
     pthread_rwlock_t *rwlock;
 } thread_params_t;
 
-// double get_time()
-// {
-//     struct timeval t;
-//     gettimeofday(&t, NULL);
-//     return t.tv_sec + t.tv_usec / 1e6;
-// }
-
-// void *thread_worker(void *args)
-// {
-//     thread_params_t *params = (thread_params_t *)args;
-//     int ops_per_thread = params->m / params->thread_count;
-
-//     for (int i = 0; i < ops_per_thread; i++)
-//     {
-//         double prob = (double)rand() / RAND_MAX;
-//         int val = rand() % 65536;
-
-//         if (prob < params->mMember)
-//         {
-//             // Read lock for Member
-//             pthread_rwlock_rdlock(params->rwlock);
-//             Member(val, *(params->head));
-//             pthread_rwlock_unlock(params->rwlock);
-//         }
-//         else if (prob < params->mMember + params->mInsert)
-//         {
-//             // Write lock for Insert
-//             pthread_rwlock_wrlock(params->rwlock);
-//             Insert(val, params->head);
-//             pthread_rwlock_unlock(params->rwlock);
-//         }
-//         else
-//         {
-//             // Write lock for Delete
-//             pthread_rwlock_wrlock(params->rwlock);
-//             Delete(val, params->head);
-//             pthread_rwlock_unlock(params->rwlock);
-//         }
-//     }
-//     return NULL;
-// }
-
 void *thread_worker(void *args)
 {
     thread_params_t *params = (thread_params_t *)args;
 
-    int totOps = 0;
-    int memOps = 0, insOps = 0, delOps = 0;
+    // Thread-local RNG seed
+    unsigned int seed = time(NULL) ^ (unsigned long)pthread_self();
 
+    // Calculate exact number of operations per thread
     int Mem = (int)(params->mMember * params->m / params->thread_count);
     int Ins = (int)(params->mInsert * params->m / params->thread_count);
     int Del = (int)(params->mDelete * params->m / params->thread_count);
+    int totalOps = Mem + Ins + Del;
 
-    while (totOps < Mem + Ins + Del)
+    // Step 1: Create an array with exact operations
+    int *ops = malloc(totalOps * sizeof(int));
+    int idx = 0;
+    for (int i = 0; i < Mem; i++) ops[idx++] = 2;  // Member
+    for (int i = 0; i < Ins; i++) ops[idx++] = 0;  // Insert
+    for (int i = 0; i < Del; i++) ops[idx++] = 1;  // Delete
+
+    // Step 2: Shuffle operations array (Fisher-Yates)
+    for (int i = totalOps - 1; i > 0; i--)
     {
-        int rand_value = rand() % 65536;
-        int op = rand() % 3;
+        int j = rand_r(&seed) % (i + 1);
+        int tmp = ops[i];
+        ops[i] = ops[j];
+        ops[j] = tmp;
+    }
 
-        if (op == 0 && insOps < Ins)
+    // Step 3: Execute operations with correct locks
+    for (int i = 0; i < totalOps; i++)
+    {
+        int val = rand_r(&seed) % 65536;
+
+        if (ops[i] == 0)
         {
-            // Exclusive lock for Insert
+            // Insert (write lock)
             pthread_rwlock_wrlock(params->rwlock);
-            Insert(rand_value, params->head);
+            Insert(val, params->head);
             pthread_rwlock_unlock(params->rwlock);
-            insOps++;
-            totOps++;
         }
-        else if (op == 1 && delOps < Del)
+        else if (ops[i] == 1)
         {
-            // Exclusive lock for Delete
+            // Delete (write lock)
             pthread_rwlock_wrlock(params->rwlock);
-            Delete(rand_value, params->head);
+            Delete(val, params->head);
             pthread_rwlock_unlock(params->rwlock);
-            delOps++;
-            totOps++;
         }
-        else if (op == 2 && memOps < Mem)
+        else
         {
-            // Shared lock for Member
+            // Member (read lock)
             pthread_rwlock_rdlock(params->rwlock);
-            Member(rand_value, *(params->head));
+            Member(val, *(params->head));
             pthread_rwlock_unlock(params->rwlock);
-            memOps++;
-            totOps++;
         }
     }
 
+    free(ops);
     return NULL;
 }
 

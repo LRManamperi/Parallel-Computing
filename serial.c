@@ -2,16 +2,10 @@
 #include <stdlib.h>
 #include <time.h>
 #include <sys/time.h>
-#include "linkedlist.h" // include your linked list module
+#include "linkedlist.h"
 
 #define MAX_VALUE 65536 // 2^16
 
-// double get_time()
-// {
-//     struct timeval t;
-//     gettimeofday(&t, NULL);
-//     return t.tv_sec + t.tv_usec / 1e6;
-// }
 
 double run_threads(struct list_node_s **list_head,
                    int m,
@@ -26,17 +20,8 @@ double run_threads(struct list_node_s **list_head,
         fprintf(stderr, "Only serial version (program_type=0) is implemented in this function.\n");
         exit(EXIT_FAILURE);
     }
-    // int n = 1000;                    // initial population size
-    // struct list_node_s *head = NULL; // local head variable
 
     srand(time(NULL)); // random seed
-
-    // // Step 1: Populate list with n unique random values
-    // for (int i = 0; i < n; i++)
-    // {
-    //     int val = rand() % MAX_VALUE;
-    //     Insert(val, &head);
-    // }
 
     // Calculate exact counts
     int Mem = (int)(m * mMember);

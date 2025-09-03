@@ -57,24 +57,18 @@ unsigned long run_experiment(int case_num, int thread_count, int program_type)
 
     struct list_node_s *head = NULL;
 
-    // Populate list with n random values
-    for (int i = 0; i < n; i++)
+    // Populate list with exactly n unique random values
+    int count = 0;
+    while (count < n)
     {
         int val = rand() % MAX_VALUE;
-        Insert(val, &head);
+        if (Insert(val, &head))
+        { // Only count successful inserts
+            count++;
+        }
     }
-    // printf(m, mmem, mins, mdel, thread_count, program_type);
 
     unsigned long elapsed = run_threads(&head, m, mmem, mins, mdel, thread_count, program_type);
-
-    // Free list
-    struct list_node_s *curr = head;
-    while (curr != NULL)
-    {
-        struct list_node_s *tmp = curr;
-        curr = curr->next;
-        free(tmp);
-    }
 
     return elapsed;
 }
@@ -114,6 +108,11 @@ void write_to_csv(FILE *fp, int num_runs, unsigned long times[], int thread_coun
         printf("95%% CI: %.2f ± %.2f us\n", avg_time, margin_error);
         printf("Range: [%.2f, %.2f] us\n", avg_time - margin_error, avg_time + margin_error);
 
+        double required_accuracy = 0.05 * avg_time; // 5% of mean
+        int required_samples = (int)ceil(pow((1.96 * std_dev) / required_accuracy, 2));
+
+        printf("Required samples for 95%% CI within 5%%: %d\n", required_samples);
+
         const char *program_type_str = NULL;
 
         if (program_type == 0)
@@ -124,7 +123,6 @@ void write_to_csv(FILE *fp, int num_runs, unsigned long times[], int thread_coun
             program_type_str = "RWLock";
         else
             program_type_str = "Unknown";
-
 
         // Write to CSV
         fprintf(fp, "%s,%d,%.2f,%.2f,%lu,%lu,%.2f,%.2f,%d\n",
@@ -139,14 +137,10 @@ void run_performance_tests(int program_type, FILE *fp)
     unsigned long times[num_runs];
     int thread_counts[] = {1, 2, 4, 8};
 
-    // CSV header
-
     printf("\n=== PERFORMANCE TESTING ===\n");
     if (program_type == 0)
     {
         write_to_csv(fp, num_runs, times, 1, 0);
-
-        fclose(fp);
     }
     else if (program_type == 1)
     {
@@ -167,26 +161,31 @@ void run_performance_tests(int program_type, FILE *fp)
     printf("\nResults saved to performance_results.csv files\n");
 }
 
-int main(int argc, char *argv[]) {
-    if (argc < 2) {
+int main(int argc, char *argv[])
+{
+    if (argc < 2)
+    {
         printf("Usage: %s <program_type>\n", argv[0]);
         printf("0 = Serial, 1 = Mutex, 2 = RWLock\n");
         return 1;
     }
 
     int program_type = atoi(argv[1]);
-    if (program_type < 0 || program_type > 2) {
+    if (program_type < 0 || program_type > 2)
+    {
         printf("Invalid program type. Must be 0, 1, or 2.\n");
         return 1;
     }
 
-    FILE *fp = fopen("performance_results_all.csv", "a"); // append mode
-    if (!fp) {
+    FILE *fp = fopen("performance_results_all_test.csv", "a"); // append mode
+    if (!fp)
+    {
         printf("Error opening file\n");
         return 1;
     }
 
-    if (ftell(fp) == 0) { // if file is empty, write header
+    if (ftell(fp) == 0)
+    { // if file is empty, write header
         fprintf(fp, "ProgramType,Case,Average(us),StdDev(us),Min(us),Max(us),95%% CI Lower(us),95%% CI Upper(us),Thread Count\n");
     }
 

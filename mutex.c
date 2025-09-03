@@ -13,89 +13,56 @@ typedef struct
     pthread_mutex_t *mutex;
 } thread_params_t;
 
-// double get_time()
-// {
-//     struct timeval t;
-//     gettimeofday(&t, NULL);
-//     return t.tv_sec + t.tv_usec / 1e6;
-// }
-
-// void *thread_worker(void *args)
-// {
-//     thread_params_t *params = (thread_params_t *)args;
-//     int ops_per_thread = params->m / params->thread_count;
-
-//     for (int i = 0; i < ops_per_thread; i++)
-//     {
-//         double prob = (double)rand() / RAND_MAX;
-//         int val = rand() % 65536;
-
-//         pthread_mutex_lock(params->mutex);
-
-//         if (prob < params->mMember)
-//         {
-//             Member(val, *(params->head));
-//         }
-//         else if (prob < params->mMember + params->mInsert)
-//         {
-//             Insert(val, params->head);
-//         }
-//         else
-//         {
-//             Delete(val, params->head);
-//         }
-
-//         pthread_mutex_unlock(params->mutex);
-//     }
-//     return NULL;
-// }
-
 void *thread_worker(void *args)
 {
     thread_params_t *params = (thread_params_t *)args;
 
-    int totOps = 0;
-    int memOps = 0, insOps = 0, delOps = 0;
+    // Thread-local RNG seed
+    unsigned int seed = time(NULL) ^ (unsigned long)pthread_self();
 
     // Calculate how many of each operation this thread should perform
     int Mem = (int)(params->mMember * params->m / params->thread_count);
     int Ins = (int)(params->mInsert * params->m / params->thread_count);
     int Del = (int)(params->mDelete * params->m / params->thread_count);
 
-    while (totOps < Mem + Ins + Del)
-    {
-        int rand_value = rand() % 65536;
-        int op = rand() % 3;
+    int totalOps = Mem + Ins + Del;
 
-        if (op == 0 && insOps < Ins)
-        {
-            pthread_mutex_lock(params->mutex);
-            Insert(rand_value, params->head);
-            pthread_mutex_unlock(params->mutex);
-            insOps++;
-            totOps++;
-        }
-        else if (op == 1 && delOps < Del)
-        {
-            pthread_mutex_lock(params->mutex);
-            Delete(rand_value, params->head);
-            pthread_mutex_unlock(params->mutex);
-            delOps++;
-            totOps++;
-        }
-        else if (op == 2 && memOps < Mem)
-        {
-            pthread_mutex_lock(params->mutex);
-            Member(rand_value, *(params->head));
-            pthread_mutex_unlock(params->mutex);
-            memOps++;
-            totOps++;
-        }
+    // Step 1: Create an array of operations
+    int *ops = malloc(totalOps * sizeof(int));
+    int idx = 0;
+    for (int i = 0; i < Mem; i++) ops[idx++] = 2;  // Member
+    for (int i = 0; i < Ins; i++) ops[idx++] = 0;  // Insert
+    for (int i = 0; i < Del; i++) ops[idx++] = 1;  // Delete
+
+    // Step 2: Shuffle the array (Fisher-Yates)
+    for (int i = totalOps - 1; i > 0; i--)
+    {
+        int j = rand_r(&seed) % (i + 1);
+        int tmp = ops[i];
+        ops[i] = ops[j];
+        ops[j] = tmp;
     }
 
+    // Step 3: Execute operations
+    for (int i = 0; i < totalOps; i++)
+    {
+        int val = rand_r(&seed) % 65536;
+
+        pthread_mutex_lock(params->mutex);
+
+        if (ops[i] == 0)
+            Insert(val, params->head);
+        else if (ops[i] == 1)
+            Delete(val, params->head);
+        else
+            Member(val, *(params->head));
+
+        pthread_mutex_unlock(params->mutex);
+    }
+
+    free(ops);
     return NULL;
 }
-
 
 double run_threads(struct list_node_s **list_head,
                    int m,
