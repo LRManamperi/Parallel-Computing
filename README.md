@@ -47,6 +47,49 @@ gcc main.c mutex.c linkedlist.c -o main -lpthread -lm
 gcc main.c serial.c linkedlist.c -o main
 ```
 
+## How to Run with Makefile
+
+### Basic Makefile Commands
+
+#### Build and Run All Versions Automatically
+```bash
+make run_all
+```
+This single command will:
+- Build all three executables if they don't exist
+- Run `serial_exec 0`
+- Run `mutex_exec 1` 
+- Run `rwlock_exec 2`
+- Display formatted output with separators
+
+#### Build All Versions
+```bash
+make all
+```
+Creates all three executables: `serial_exec`, `mutex_exec`, and `rwlock_exec`
+
+#### Run Performance Benchmark
+```bash
+make benchmark
+```
+Builds and runs all versions while measuring execution time for performance comparison
+
+#### Clean All Generated Files
+```bash
+make clean
+```
+Removes all executable files and object files
+
+### Manual Execution After Building
+
+After building with `make all`, you can also run each version manually:
+
+```bash
+./main.exe 0     # Run serial version with mode 0
+./main.exe 1      # Run mutex version with mode 1
+./main.exe 2     # Run read-write lock version with mode 2
+```
+
 ## Usage
 
 After compilation, run the program with:
@@ -116,24 +159,6 @@ gcc main.c serial.c linkedlist.c -o main_serial
 echo "All versions built successfully!"
 ```
 
-### Testing All Versions
-```bash
-# Test read-write lock version
-./main_rw 0
-./main_rw 1
-./main_rw 2
-
-# Test mutex version  
-./main_mutex 0
-./main_mutex 1
-./main_mutex 2
-
-# Test serial version
-./main_serial 0
-./main_serial 1
-./main_serial 2
-```
-
 ## Common Issues and Troubleshooting
 
 ### Compilation Errors
@@ -185,8 +210,3 @@ benchmark: all
 	@echo "RWLock version:"
 	@time ./rwlock_exec 2
 ```
-
-
-
-[Add author information]
-
