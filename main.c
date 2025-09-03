@@ -114,14 +114,26 @@ void write_to_csv(FILE *fp, int num_runs, unsigned long times[], int thread_coun
         printf("95%% CI: %.2f ± %.2f us\n", avg_time, margin_error);
         printf("Range: [%.2f, %.2f] us\n", avg_time - margin_error, avg_time + margin_error);
 
+        const char *program_type_str = NULL;
+
+        if (program_type == 0)
+            program_type_str = "Serial";
+        else if (program_type == 1)
+            program_type_str = "Mutex";
+        else if (program_type == 2)
+            program_type_str = "RWLock";
+        else
+            program_type_str = "Unknown";
+
+
         // Write to CSV
-        fprintf(fp, "%d,%.2f,%.2f,%lu,%lu,%.2f,%.2f,%d\n",
-                case_num, avg_time, std_dev, min_time, max_time, avg_time - margin_error, avg_time + margin_error, thread_count);
+        fprintf(fp, "%s,%d,%.2f,%.2f,%lu,%lu,%.2f,%.2f,%d\n",
+                program_type_str, case_num, avg_time, std_dev, min_time, max_time, avg_time - margin_error, avg_time + margin_error, thread_count);
     }
 }
 
 // Function to run multiple tests and calculate statistics
-void run_performance_tests(int program_type)
+void run_performance_tests(int program_type, FILE *fp)
 {
     const int num_runs = 30;
     unsigned long times[num_runs];
@@ -132,65 +144,56 @@ void run_performance_tests(int program_type)
     printf("\n=== PERFORMANCE TESTING ===\n");
     if (program_type == 0)
     {
-        FILE *fp = fopen("performance_results_serial.csv", "w");
-        if (!fp)
-        {
-            printf("Error opening CSV file for writing.\n");
-            return;
-        }
-        printf("\n=== Serial Program ===\n");
-        fprintf(fp, "\n=== Serial Program ===\n");
-
-        fprintf(fp, "Case,Average(us),StdDev(us),Min(us),Max(us),95%% CI Lower(us),95%% CI Upper(us),Thread Count\n");
-
         write_to_csv(fp, num_runs, times, 1, 0);
 
         fclose(fp);
     }
     else if (program_type == 1)
     {
-        FILE *fp = fopen("performance_results_mutex.csv", "w");
-        if (!fp)
-        {
-            printf("Error opening CSV file for writing.\n");
-            return;
-        }
-        printf("\n=== Parallel Program (One Mutex for Entire LinkedList)===\n");
-        fprintf(fp, "\n=== Parallel Program (One Mutex for Entire LinkedList)===\n");
 
-        fprintf(fp, "Case,Average(us),StdDev(us),Min(us),Max(us),95%% CI Lower(us),95%% CI Upper(us),Thread Count\n");
         for (int i = 0; i <= 3; i++)
         {
             write_to_csv(fp, num_runs, times, thread_counts[i], 1);
         }
-        fclose(fp);
     }
     else if (program_type == 2)
     {
-        FILE *fp = fopen("performance_results_rwlock.csv", "w");
-        if (!fp)
-        {
-            printf("Error opening CSV file for writing.\n");
-            return;
-        }
-        printf("\n=== Parallel Program (Read Write Locks for Entire LinkedList)===\n");
-        fprintf(fp, "\n=== Parallel Program (Read Write Locks for Entire LinkedList)===\n");
-
-        fprintf(fp, "Case,Average(us),StdDev(us),Min(us),Max(us),95%% CI Lower(us),95%% CI Upper(us),Thread Count\n");
         for (int i = 0; i <= 3; i++)
         {
-            write_to_csv(fp, num_runs, times, thread_counts[i], 1);
+            write_to_csv(fp, num_runs, times, thread_counts[i], 2);
         }
-        fclose(fp);
     }
 
     printf("\nResults saved to performance_results.csv files\n");
 }
 
-int main()
-{
-    srand(time(NULL)); // random seed
-    run_performance_tests(1);
+int main(int argc, char *argv[]) {
+    if (argc < 2) {
+        printf("Usage: %s <program_type>\n", argv[0]);
+        printf("0 = Serial, 1 = Mutex, 2 = RWLock\n");
+        return 1;
+    }
 
+    int program_type = atoi(argv[1]);
+    if (program_type < 0 || program_type > 2) {
+        printf("Invalid program type. Must be 0, 1, or 2.\n");
+        return 1;
+    }
+
+    srand(time(NULL));
+
+    FILE *fp = fopen("performance_results_all.csv", "a"); // append mode
+    if (!fp) {
+        printf("Error opening file\n");
+        return 1;
+    }
+
+    if (ftell(fp) == 0) { // if file is empty, write header
+        fprintf(fp, "ProgramType,Case,Average(us),StdDev(us),Min(us),Max(us),95%% CI Lower(us),95%% CI Upper(us),Thread Count\n");
+    }
+
+    run_performance_tests(program_type, fp);
+
+    fclose(fp);
     return 0;
 }
