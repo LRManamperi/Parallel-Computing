@@ -180,8 +180,6 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    srand(time(NULL));
-
     FILE *fp = fopen("performance_results_all.csv", "a"); // append mode
     if (!fp) {
         printf("Error opening file\n");
