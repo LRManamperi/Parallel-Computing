@@ -6,6 +6,9 @@
 #include <time.h>
 #include <sys/time.h>
 #include <stdbool.h>
+#include <limits.h>
+#include <math.h>
+
 
 #define MAX 65536  // 2^16
 
